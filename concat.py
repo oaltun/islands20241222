@@ -50,6 +50,8 @@ if __name__ == "__main__":
     with open(output_file_path, "w") as file_obj:
         append_file("./docker-compose.yml", file_obj)
         append_file("./Cargo.toml", file_obj)
+
+        append_dir("./examples/", file_obj, exclude_patterns)
         append_dir("./src/", file_obj, exclude_patterns)
         append_file("./txt_prompt.txt", file_obj)
 
