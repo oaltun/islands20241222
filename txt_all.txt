@@ -1,0 +1,243 @@
+//-- File: ./docker-compose.yml -----------------
+services:
+  postgres:
+    build:
+      context: .
+      dockerfile: Dockerfile.postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      #BACKUP_SCHEDULE: "0 2 * * *" # Everyday at 2 am.
+      BACKUP_SCHEDULE: "0 * * * *" # every hour.
+    volumes:
+      - ${POSTGRES_PGDATA_PATH}:/var/lib/postgresql/data
+      - ./backup:/backup # Mount backup directory and script
+    networks:
+      - app-network
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h postgres -U ${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  adminer:
+    image: adminer:latest
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ADMINER_DEFAULT_SERVER: postgres
+    ports:
+      - "8082:8080"
+    networks:
+      - app-network
+
+networks:
+  app-network:
+
+
+//-- File: ./Cargo.toml -----------------
+[package]
+name = "islands"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+console_error_panic_hook = "0.1.7"
+futures = "0.3.30"
+http = "1.1"
+leptos = { version = "0.7.2", features = ["tracing", "islands"] }
+server_fn = { version = "0.7.2", features = ["serde-lite"] }
+leptos_axum = { version = "0.7.2", optional = true }
+log = "0.4.22"
+serde = { version = "1.0", features = ["derive"] }
+axum = { version = "0.7.5", optional = true }
+tower = { version = "0.5.2", optional = true }
+tower-http = { version = "0.6.2", features = ["fs"], optional = true }
+tokio = { version = "1.39", features = ["full"], optional = true }
+wasm-bindgen = "0.2.93"
+
+[features]
+hydrate = ["leptos/hydrate"]
+ssr = [
+  "dep:axum",
+  "dep:tower",
+  "dep:tower-http",
+  "dep:tokio",
+  "leptos/ssr",
+  "dep:leptos_axum",
+]
+
+[profile.wasm-release]
+inherits = "release"
+opt-level = 'z'
+lto = true
+codegen-units = 1
+panic = "abort"
+
+[package.metadata.cargo-all-features]
+denylist = ["axum", "tower", "tower-http", "tokio", "sqlx", "leptos_axum"]
+skip_feature_sets = [["csr", "ssr"], ["csr", "hydrate"], ["ssr", "hydrate"]]
+
+[package.metadata.leptos]
+# The name used by wasm-bindgen/cargo-leptos for the JS/WASM bundle. Defaults to the crate name
+output-name = "islands"
+# The site root folder is where cargo-leptos generate all output. WARNING: all content of this folder will be erased on a rebuild. Use it in your server setup.
+site-root = "target/site"
+# The site-root relative folder where all compiled output (JS, WASM and CSS) is written
+# Defaults to pkg
+site-pkg-dir = "pkg"
+# [Optional] The source CSS file. If it ends with .sass or .scss then it will be compiled by dart-sass into CSS. The CSS is optimized by Lightning CSS before being written to <site-root>/<site-pkg>/app.css
+style-file = "./style.css"
+# [Optional] Files in the asset-dir will be copied to the site-root directory
+assets-dir = "public"
+# The IP and port (ex: 127.0.0.1:3000) where the server serves the content. Use it in your server setup.
+site-addr = "127.0.0.1:3000"
+# The port to use for automatic reload monitoring
+reload-port = 3001
+#  The browserlist query used for optimizing the CSS.
+browserquery = "defaults"
+# Set by cargo-leptos watch when building with that tool. Controls whether autoreload JS will be included in the head
+watch = false
+# The environment Leptos will run in, usually either "DEV" or "PROD"
+env = "DEV"
+# The features to use when compiling the bin target
+#
+# Optional. Can be over-ridden with the command line parameter --bin-features
+bin-features = ["ssr"]
+
+# If the --no-default-features flag should be used when compiling the bin target
+#
+# Optional. Defaults to false.
+bin-default-features = false
+
+# The features to use when compiling the lib target
+#
+# Optional. Can be over-ridden with the command line parameter --lib-features
+lib-features = ["hydrate"]
+
+# If the --no-default-features flag should be used when compiling the lib target
+#
+# Optional. Defaults to false.
+lib-default-features = false
+
+lib-profile-release = "wasm-release"
+
+
+//-- File: ./src/lib.rs -----------------
+pub mod app;
+
+#[cfg(feature = "hydrate")]
+#[wasm_bindgen::prelude::wasm_bindgen]
+pub fn hydrate() {
+    console_error_panic_hook::set_once();
+    leptos::mount::hydrate_islands();
+}
+
+
+//-- File: ./src/main.rs -----------------
+use axum::Router;
+use islands::app::{shell, App};
+use leptos::prelude::*;
+use leptos_axum::{generate_route_list, LeptosRoutes};
+
+#[tokio::main]
+async fn main() {
+    // Setting this to None means we'll be using cargo-leptos and its env vars
+    let conf = get_configuration(None).unwrap();
+    let leptos_options = conf.leptos_options;
+    let addr = leptos_options.site_addr;
+    let routes = generate_route_list(App);
+
+    // build our application with a route
+    let app = Router::new()
+        .leptos_routes(&leptos_options, routes, {
+            let leptos_options = leptos_options.clone();
+            move || shell(leptos_options.clone())
+        })
+        .fallback(leptos_axum::file_and_error_handler(shell))
+        .with_state(leptos_options);
+
+    // run our app with hyper
+    // `axum::Server` is a re-export of `hyper::Server`
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    println!("listening on http://{}", &addr);
+    axum::serve(listener, app.into_make_service())
+        .await
+        .unwrap();
+}
+
+
+//-- File: ./src/app.rs -----------------
+use leptos::prelude::*;
+
+pub fn shell(options: LeptosOptions) -> impl IntoView {
+    view! {
+        <!DOCTYPE html>
+        <html lang="en">
+            <head>
+                <meta charset="utf-8"/>
+                <meta name="viewport" content="width=device-width, initial-scale=1"/>
+                <AutoReload options=options.clone()/>
+                <HydrationScripts options=options islands=true/>
+                <link rel="stylesheet" id="leptos" href="/pkg/islands.css"/>
+                <link rel="shortcut icon" type="image/ico" href="/favicon.ico"/>
+            </head>
+            <body>
+                <App/>
+            </body>
+        </html>
+    }
+}
+
+#[component]
+pub fn App() -> impl IntoView {
+    view! {
+        <header>
+            <h1>"My Application"</h1>
+        </header>
+        <main>
+            <OuterIsland>
+                <InnerIsland/>
+                <InnerIsland/>
+                <InnerIsland/>
+            </OuterIsland>
+        </main>
+    }
+}
+
+#[island]
+pub fn OuterIsland(children: Children) -> impl IntoView {
+    provide_context(42i32);
+    view! {
+        <div class="outer-island">
+            <h2>"Outer Island"</h2>
+            <button on:click=|_| leptos::logging::log!("clicked button in island!")>
+                "Click me"
+            </button>
+            {children()}
+        </div>
+    }
+}
+
+#[island]
+pub fn InnerIsland() -> impl IntoView {
+    let val = use_context::<i32>();
+    view! {
+        <h2>"Inner Island"</h2>
+        <button on:click=move |_| leptos::logging::log!("value should be Some(42) -- it's {val:?}")>
+            "Click me (inner)"
+        </button>
+    }
+}
+
+
+//-- File: ./txt_prompt.txt -----------------
+----------
+
