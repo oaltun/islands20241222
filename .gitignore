@@ -14,3 +14,5 @@ Cargo.lock
 
 sso.db
 vendor
+txt_all.txt
+txt_prompt.txt
