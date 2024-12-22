@@ -17,12 +17,19 @@ leptos_router = { version = "0.7.2", optional = true }
 
 
 log = "0.4.22"
+oauth2 = { version = "4.4.2", optional = true }
+
 serde = { version = "1.0", features = ["derive"] }
-axum = { version = "0.7.5", optional = true }
+axum = { version = "0.7.5", optional = true, features = ["macros"] }
 tower = { version = "0.5.2", optional = true }
 tower-http = { version = "0.6.2", features = ["fs"], optional = true }
 tokio = { version = "1.39", features = ["full"], optional = true }
 wasm-bindgen = "0.2.93"
+sqlx = { version = "0.8.2", features = [
+  "runtime-tokio-rustls",
+  "postgres",
+], optional = true }
+
 
 [features]
 hydrate = ["leptos/hydrate"]
@@ -34,6 +41,8 @@ ssr = [
   "leptos/ssr",
   "dep:leptos_axum",
   "dep:leptos_router",
+  "dep:oauth2",
+  "dep:sqlx",
 ]
 
 [profile.wasm-release]
