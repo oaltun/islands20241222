@@ -1,6 +1,3 @@
-pub mod app;
-pub mod structs;
-
 #[cfg(feature = "hydrate")]
 #[wasm_bindgen::prelude::wasm_bindgen]
 pub fn hydrate() {

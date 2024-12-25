@@ -15,5 +15,7 @@ Cargo.lock
 sso.db
 vendor
 txt_all.txt
-txt_prompt.txt
+txt_prompt*
+tree.txt
+
 examples

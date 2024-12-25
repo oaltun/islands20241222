@@ -32,13 +32,13 @@ sqlx = { version = "0.8.2", features = [
 
 
 [features]
-hydrate = ["leptos/hydrate"]
+hydrate = ["leptos/hydrate", "dep:leptos_router"]
 ssr = [
+  "leptos/ssr",
   "dep:axum",
   "dep:tower",
   "dep:tower-http",
   "dep:tokio",
-  "leptos/ssr",
   "dep:leptos_axum",
   "dep:leptos_router",
   "dep:oauth2",

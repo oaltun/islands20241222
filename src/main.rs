@@ -1,10 +1,11 @@
+pub mod components;
+pub mod structs;
+
 use axum::Router;
-use islands::{
-    app::{shell, App},
-    structs::app_state::AppState,
-};
+use components::{app::App, shell::shell};
 use leptos::prelude::*;
 use leptos_axum::{file_and_error_handler, generate_route_list, LeptosRoutes};
+use structs::app_state::AppState;
 
 #[tokio::main]
 async fn main() {
@@ -27,7 +28,8 @@ async fn main() {
     )
     .set_redirect_uri(
         oauth2::RedirectUrl::new(
-            std::env::var("REDIRECT_URL").expect("REDIRECT_URL Env var to be set"),
+            std::env::var("GOOGLE_AUTH_REDIRECT_URL")
+                .expect("GOOGLE_AUTH_REDIRECT_URL Env var to be set"),
         )
         .unwrap(),
     );
