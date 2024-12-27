@@ -14,6 +14,7 @@ leptos = { version = "0.7.2", features = ["tracing", "islands"] }
 server_fn = { version = "0.7.2", features = ["serde-lite"] }
 leptos_axum = { version = "0.7.2", optional = true }
 leptos_router = { version = "0.7.2", optional = true }
+leptos_meta = { version = "0.7.2", optional = true }
 
 
 log = "0.4.22"
@@ -41,6 +42,7 @@ ssr = [
   "dep:tokio",
   "dep:leptos_axum",
   "dep:leptos_router",
+  "dep:leptos_meta",
   "dep:oauth2",
   "dep:sqlx",
 ]

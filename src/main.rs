@@ -1,14 +1,27 @@
 pub mod components;
+pub mod lib_ssr;
 pub mod structs;
 
 use axum::Router;
 use components::{app::App, shell::shell};
 use leptos::prelude::*;
 use leptos_axum::{file_and_error_handler, generate_route_list, LeptosRoutes};
+use sqlx::postgres::PgPoolOptions;
 use structs::app_state::AppState;
 
 #[tokio::main]
 async fn main() {
+    // Create a db connection pool
+    let pool = PgPoolOptions::new()
+        .max_connections(5)
+        .connect(&std::env::var("DATABASE_URL").expect("DATABASE_URL must be set"))
+        .await
+        .expect("Could not create PostgreSQL connection pool.");
+    sqlx::migrate!()
+        .run(&pool)
+        .await
+        .expect("could not run SQLx migrations");
+
     // Setting this to None means we'll be using cargo-leptos and its env vars
     let conf = get_configuration(None).unwrap();
     let leptos_options = conf.leptos_options;
@@ -36,14 +49,14 @@ async fn main() {
 
     let app_state = AppState {
         leptos_options: leptos_options.clone(),
-        //pool: pool.clone(),
+        pool: pool.clone(),
         client,
+        message: "Hello, world!".to_string(),
     };
 
     // build our application
     let app = Router::new()
         .leptos_routes(&app_state, routes, {
-            // let app_state = app_state.clone();
             move || shell(leptos_options.clone())
         })
         .fallback(file_and_error_handler::<AppState, _>(shell))
