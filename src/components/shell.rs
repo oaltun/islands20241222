@@ -8,7 +8,6 @@ use leptos_router::components::*;
 use leptos_router::path;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
-    let app_state = expect_context::<AppState>();
     view! {
         <!DOCTYPE html>
         <html lang="en">

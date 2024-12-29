@@ -54,10 +54,18 @@ async fn main() {
         message: "the message".to_string(),
     };
 
+    // Clone `app_state` so it can be moved into the closure
+    let app_state_clone = app_state.clone();
     let app = Router::new()
-        .leptos_routes(&app_state, routes, {
-            move || shell(leptos_options.clone())
-        })
+        .leptos_routes_with_context(
+            &app_state,
+            routes,
+            move || {
+                // Provide additional context to the reactive system
+                provide_context(app_state_clone.clone());
+            },
+            move || shell(leptos_options.clone()),
+        )
         .fallback(file_and_error_handler::<AppState, _>(shell))
         .with_state(app_state.clone());
 
