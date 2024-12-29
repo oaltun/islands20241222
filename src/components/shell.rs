@@ -1,11 +1,14 @@
 use crate::components::app::App;
 use crate::components::protected::Protected;
 use crate::components::signin::Signin;
+use crate::structs::app_state::AppState;
+
 use leptos::prelude::*;
 use leptos_router::components::*;
 use leptos_router::path;
 
 pub fn shell(options: LeptosOptions) -> impl IntoView {
+    let app_state = expect_context::<AppState>();
     view! {
         <!DOCTYPE html>
         <html lang="en">

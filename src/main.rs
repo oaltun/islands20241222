@@ -51,16 +51,17 @@ async fn main() {
         leptos_options: leptos_options.clone(),
         pool: pool.clone(),
         client,
-        message: "Hello, world!".to_string(),
+        message: "the message".to_string(),
     };
 
-    // build our application
     let app = Router::new()
         .leptos_routes(&app_state, routes, {
             move || shell(leptos_options.clone())
         })
         .fallback(file_and_error_handler::<AppState, _>(shell))
-        .with_state(app_state);
+        .with_state(app_state.clone());
+
+    provide_context(app_state.clone());
 
     // run our app with hyper
     // `axum::Server` is a re-export of `hyper::Server`
